@@ -1,0 +1,199 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx,array}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{lastpage}
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=black, citecolor=black}
+
+\newcommand{\course}{Internet of Things -- IoT Challenge \#2}
+\newcommand{\studentA}{Mobin Khatib - 11114435}
+\newcommand{\studentB}{Ali Edareh Heidarabadi - 11036028}
+
+\setlength{\parindent}{14pt}
+\setlength{\headheight}{14pt}
+\setlength{\parskip}{0.25em}
+\renewcommand{\arraystretch}{1.18}
+\captionsetup{font=small,labelfont=bf}
+\titleformat{\section}{\large\bfseries}{}{0pt}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0pt}{}
+\titlespacing*{\section}{0pt}{1.2em}{0.45em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.3em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Smart Building Exercise Report}
+\fancyhead[R]{\course}
+\fancyfoot[C]{\thepage\,/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE\bfseries Smart Building Exercise Report\par}
+    \vspace{0.35em}
+    {\large \course\par}
+    \vspace{0.75em}
+    \begin{tabular}{c}
+        \studentA\\
+        \studentB
+    \end{tabular}
+    \vspace{0.45em}
+
+    Politecnico di Milano\\
+    \today
+\end{center}
+
+\vspace{0.8em}
+\hrule
+\vspace{0.9em}
+
+\begin{abstract}
+This report solves Part 2 of the challenge, which concerns the communication energy consumed by a battery-powered temperature sensor and a battery-powered actuator in a smart-building scenario. The devices may communicate either directly with CoAP or through an MQTT gateway. The first exercise question compares the total communication energy over one hour, while the second question asks for the preferred protocol when the actuator wakes up only once every 30 minutes.
+\end{abstract}
+
+\section{Problem setting and assumptions}
+The system includes a battery-powered temperature sensor that transmits one measurement every two minutes, a battery-powered actuator that receives the temperature and decides whether to switch a fan on or off, and a mains-powered gateway that supports MQTT. The energy analysis considers only the battery-powered sensor and actuator.
+
+The following assumptions are used throughout the report.
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+    \item The one-hour observation window contains exactly 30 samples, starting at \(t = 2\) min.
+    \item For EQ1, the devices do not enter sleep mode during the hour. Therefore, any MQTT setup phase is paid only once at the beginning.
+    \item No end-of-hour DISCONNECT cost is included in EQ1, since it is irrelevant to the requested comparison.
+    \item For EQ2, the actuator wakes up exactly twice, at \(t = 30\) min and \(t = 60\) min.
+    \item CoAP uses Confirmable messages, MQTT uses QoS 1, communication is ideal, and only communication energy is counted.
+\end{enumerate}
+
+\section{Energy model}
+The challenge specifies transmit and receive energy costs of
+\[
+E_{\mathrm{TX}} = 50~\si{nJ/bit},
+\qquad
+E_{\mathrm{RX}} = 58~\si{nJ/bit}.
+\]
+Since one byte contains 8 bits, the corresponding byte-level coefficients are
+\[
+E_{\mathrm{TX,byte}} = 8\cdot 50 = 400~\si{nJ/byte} = 0.4~\si{\micro J/byte},
+\]
+\[
+E_{\mathrm{RX,byte}} = 8\cdot 58 = 464~\si{nJ/byte} = 0.464~\si{\micro J/byte}.
+\]
+These two factors are used in all calculations below.
+
+Table~\ref{tab:sizes} summarizes the message sizes provided in the exercise statement.
+
+\begin{table}[h!]
+\centering
+\caption{Protocol message sizes used in the calculations.}
+\label{tab:sizes}
+\begin{tabular}{lclc}
+\toprule
+\textbf{CoAP message} & \textbf{Size} & \textbf{MQTT message} & \textbf{Size} \\
+\midrule
+CON PUT Request & 70 B & CONNECT / DISCONNECT & 60 B \\
+PUT ACK & 15 B & CONNACK & 50 B \\
+-- & -- & SUBSCRIBE & 65 B \\
+-- & -- & SUBACK & 55 B \\
+-- & -- & PUBLISH & 75 B \\
+-- & -- & PUBACK & 50 B \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{EQ1 -- Energy over one hour}
+
+\subsection{EQ1(a): Direct CoAP communication}
+\textbf{Final answer: \(\mathbf{2203.20~\si{\micro J}}\).}
+
+In the direct CoAP case, each sample is transmitted from the sensor to the actuator by means of one Confirmable PUT request and one ACK in the reverse direction. Therefore, for each sample,
+\[
+E_{\text{sensor, per sample}} = 70\cdot 0.4 + 15\cdot 0.464 = \SI{34.96}{\micro J},
+\]
+\[
+E_{\text{actuator, per sample}} = 70\cdot 0.464 + 15\cdot 0.4 = \SI{38.48}{\micro J}.
+\]
+Hence the total energy per sample is
+\[
+E_{\text{CoAP, per sample}} = \SI{34.96}{\micro J} + \SI{38.48}{\micro J} = \SI{73.44}{\micro J}.
+\]
+With 30 measurements in one hour,
+\[
+E_{\text{CoAP, 1h}} = 30\cdot\SI{73.44}{\micro J} = \boxed{\SI{2203.20}{\micro J}}.
+\]
+
+\subsection{EQ1(b): MQTT through the gateway}
+\textbf{Final answer: \(\mathbf{3385.92~\si{\micro J}}\).}
+
+For MQTT, both devices start disconnected and perform the setup phase only once at the beginning of the hour.
+
+\paragraph{Sensor contribution.}
+The sensor performs one CONNECT / CONNACK exchange and then 30 PUBLISH / PUBACK exchanges. Therefore,
+\[
+E_{\text{sensor, setup}} = 60\cdot 0.4 + 50\cdot 0.464 = \SI{47.20}{\micro J},
+\]
+\[
+E_{\text{sensor, per sample}} = 75\cdot 0.4 + 50\cdot 0.464 = \SI{53.20}{\micro J},
+\]
+\[
+E_{\text{sensor, total}} = \SI{47.20}{\micro J} + 30\cdot\SI{53.20}{\micro J} = \boxed{\SI{1643.20}{\micro J}}.
+\]
+
+\paragraph{Actuator contribution.}
+The actuator performs one CONNECT / CONNACK exchange, one SUBSCRIBE / SUBACK exchange, and then 30 PUBLISH receptions followed by 30 PUBACK transmissions. Hence,
+\[
+E_{\text{actuator, setup}} = (60+65)\cdot 0.4 + (50+55)\cdot 0.464 = \SI{98.72}{\micro J},
+\]
+\[
+E_{\text{actuator, per sample}} = 50\cdot 0.4 + 75\cdot 0.464 = \SI{54.80}{\micro J},
+\]
+\[
+E_{\text{actuator, total}} = \SI{98.72}{\micro J} + 30\cdot\SI{54.80}{\micro J} = \boxed{\SI{1742.72}{\micro J}}.
+\]
+
+Summing the two battery-powered devices gives
+\[
+E_{\text{MQTT, 1h}} = \SI{1643.20}{\micro J} + \SI{1742.72}{\micro J} = \boxed{\SI{3385.92}{\micro J}}.
+\]
+
+Table~\ref{tab:eq1-summary} summarizes the result.
+
+\begin{table}[h!]
+\centering
+\caption{Summary of the EQ1 energy comparison.}
+\label{tab:eq1-summary}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Protocol} & \textbf{Sensor energy} & \textbf{Actuator energy} & \textbf{Total} \\
+\midrule
+CoAP direct & \SI{1048.80}{\micro J} & \SI{1154.40}{\micro J} & \SI{2203.20}{\micro J} \\
+MQTT via gateway & \SI{1643.20}{\micro J} & \SI{1742.72}{\micro J} & \SI{3385.92}{\micro J} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Therefore, in the always-awake one-hour scenario, CoAP is more energy efficient than MQTT because it avoids the connection establishment, subscription overhead, and broker acknowledgments required by MQTT.
+
+\section{EQ2 -- Protocol choice with actuator wake-up every 30 minutes}
+\textbf{Final answer: choose MQTT with Retain = True on sensor publishes and Clean Session = True when the actuator reconnects.}
+
+When the actuator wakes up only once every 30 minutes, the optimization target changes. The main objective is no longer the minimum overhead per sample in a continuously active system, but rather the minimum long-term communication energy under deep-sleep operation.
+
+For this reason, MQTT is the preferable design. The sensor should publish temperature updates every two minutes with \textbf{Retain = True}. The actuator should reconnect with \textbf{Clean Session = True}, subscribe to the topic, receive only the single latest retained value, and then return to sleep. This prevents the broker from delivering a backlog of stale measurements and therefore avoids unnecessary receive energy. It is also operationally simpler than maintaining a long-lived CoAP Observe relationship across repeated deep-sleep intervals.
+
+\paragraph{Form-ready answer.}
+MQTT with Retain=True on sensor publishes and Clean Session=True on the actuator. The actuator wakes every 30 min, reconnects, subscribes, receives only the latest retained value, then sleeps again. This minimizes long-term communication energy.
+
+\section{Conclusion}
+The two exercise questions lead to different best choices because they describe different operating regimes. In the one-hour always-awake case, direct CoAP is the most energy-efficient option, with a total communication cost of \SI{2203.20}{\micro J}, compared with \SI{3385.92}{\micro J} for MQTT. In the deep-sleep scenario, however, MQTT with retained messages is the better long-term solution because it minimizes the receive energy wasted on obsolete data.
+
+\end{document}
