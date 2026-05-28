@@ -14,4 +14,3 @@ Python
 LaTeX
 Node-RED
 CSV data analysis
-## Repository Structure
