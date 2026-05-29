@@ -1,1 +1,3 @@
-
+- Exercise 1: IEEE 802.15.4 beacon-enabled network analysis, including output-rate probabilities, CFP slot allocation, duty cycle calculation, and scalability.
+- Exercise 2: BLE localization redesign for dental prostheses, including state-based beaconing logic, added sensors, firmware pseudocode, commercial components, and BLE advertising energy-saving estimate.
+- Exercise 3: RFID Dynamic Frame ALOHA analysis, including expected resolution length, efficiency values for different initial frame sizes, and maximum efficiency at r1 = 4.
